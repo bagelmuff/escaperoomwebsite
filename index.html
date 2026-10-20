@@ -650,4 +650,29 @@
     open.delete(name);
   }
 
-  document.getElementById("signout").addEventL
+  document.getElementById("signout").addEventListener("click", () => {
+    [...open.keys()].forEach(closeFile);
+    offset = 0;
+    document.getElementById("home").hidden = true;
+    document.getElementById("lock").hidden = false;
+    clearEntry();
+    error.textContent = "";
+    input.focus();
+  });
+
+  function tick() {
+    const now = new Date();
+    document.getElementById("time").textContent =
+      now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    document.getElementById("date").textContent =
+      now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    document.getElementById("tb-time").textContent =
+      now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    document.getElementById("tb-date").textContent = now.toLocaleDateString();
+  }
+  tick();
+  setInterval(tick, 10000);
+</script>
+
+</body>
+</html>
