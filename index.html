@@ -15,6 +15,7 @@
     --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
     color-scheme: dark;
   }
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -23,7 +24,6 @@
     font-family: var(--font);
     overflow: hidden;
   }
-  [hidden] { display: none !important; }
   .screen {
     position: fixed;
     inset: 0;
@@ -179,7 +179,30 @@
     color: #1a1a1a;
   }
   .titlebar .close:hover { background: #e81123; color: #ffffff; }
-  .window .body { flex: 1; background: #ffffff; }
+  .window .body { flex: 1; min-height: 0; background: #ffffff; overflow: auto; }
+  .window.viewer { width: min(760px, calc(100vw - 32px)); height: min(640px, calc(100vh - 80px)); }
+  .window.viewer .body { background: #1a1a1a; position: relative; overflow: hidden; }
+  .window.viewer .body img { position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px); object-fit: contain; display: block; }
+  .files { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; padding: 12px; }
+  .thumb {
+    width: 112px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.8rem;
+    color: #1a1a1a;
+    cursor: default;
+  }
+  .thumb img { width: 96px; height: 96px; object-fit: cover; border: 1px solid #d0d0d0; background: #f3f3f3; }
+  .thumb span { word-break: break-all; text-align: center; }
+  .thumb:hover { background: #e5f1fb; border-color: #cce4f7; }
+  .thumb.selected { background: #cce8ff; border-color: #99d1ff; }
+  .thumb:focus-visible { outline: 1px dotted #1a1a1a; outline-offset: -3px; }
 
   .taskbar {
     position: absolute;
@@ -269,7 +292,7 @@
 </template>
 
 <script>
-  const PASSWORD = "86239";
+  const PASSWORD = "2187";
   const form = document.getElementById("login");
   const input = document.getElementById("password");
   const error = document.getElementById("error");
@@ -540,6 +563,12 @@
 
   // ---------- Desktop ----------
   const FILES = ["1", "2", "3", "4"];
+  const CONTENTS = {
+    "1": [{ src: "photo4.png", name: "IMG_0417.png" }, { src: "photo2.png", name: "scan_0032.png" }],
+    "2": [{ src: "photo6.png", name: "letter.png" }],
+    "3": [{ src: "photo1.png", name: "recipe_final.png" }, { src: "photo5.png", name: "IMG_0391.png" }],
+    "4": [{ src: "photo3.png", name: "old_photo.png" }],
+  };
   const iconsEl = document.getElementById("icons");
   const winsEl = document.getElementById("windows");
   const tasksEl = document.getElementById("tasks");
@@ -583,11 +612,46 @@
   }
 
   function openFile(name) {
+    openWindow(name, name, false, (body) => {
+      const grid = document.createElement("div");
+      grid.className = "files";
+      (CONTENTS[name] || []).forEach((f) => {
+        const t = document.createElement("button");
+        t.type = "button";
+        t.className = "thumb";
+        const img = document.createElement("img");
+        img.src = f.src;
+        img.alt = "";
+        img.draggable = false;
+        const label = document.createElement("span");
+        label.textContent = f.name;
+        t.append(img, label);
+        const view = () => openWindow(name + "/" + f.name, f.name, true, (vb) => {
+          const big = document.createElement("img");
+          big.src = f.src;
+          big.alt = f.name;
+          big.draggable = false;
+          vb.appendChild(big);
+        });
+        t.addEventListener("click", (e) => {
+          grid.querySelectorAll(".thumb.selected").forEach((i) => i.classList.remove("selected"));
+          t.classList.add("selected");
+          if (e.pointerType === "touch") view();
+        });
+        t.addEventListener("dblclick", view);
+        t.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); view(); } });
+        grid.appendChild(t);
+      });
+      body.appendChild(grid);
+    });
+  }
+
+  function openWindow(name, titleText, isViewer, fill) {
     if (open.has(name)) { focusWin(name); return; }
     const win = document.createElement("div");
-    win.className = "window";
-    const w = Math.min(560, window.innerWidth - 32);
-    const h = Math.min(380, window.innerHeight - 120);
+    win.className = isViewer ? "window viewer" : "window";
+    const w = Math.min(isViewer ? 760 : 560, window.innerWidth - 32);
+    const h = Math.min(isViewer ? 640 : 380, window.innerHeight - (isViewer ? 80 : 120));
     win.style.left = Math.max(16, (window.innerWidth - w) / 2 + offset) + "px";
     win.style.top = Math.max(16, (window.innerHeight - 48 - h) / 2 + offset) + "px";
     offset = (offset + 28) % 112;
@@ -596,21 +660,22 @@
     bar.className = "titlebar";
     const title = document.createElement("span");
     title.className = "title";
-    title.textContent = name;
+    title.textContent = titleText;
     const close = document.createElement("button");
     close.type = "button";
     close.className = "close";
-    close.setAttribute("aria-label", "Close " + name);
+    close.setAttribute("aria-label", "Close " + titleText);
     close.textContent = "\u2715";
     bar.append(title, close);
     const body = document.createElement("div");
     body.className = "body";
+    fill(body);
     win.append(bar, body);
     winsEl.appendChild(win);
 
     const task = document.createElement("button");
     task.type = "button";
-    task.textContent = name;
+    task.textContent = titleText;
     task.addEventListener("click", () => focusWin(name));
     tasksEl.appendChild(task);
 
